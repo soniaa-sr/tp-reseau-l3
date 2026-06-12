@@ -5,22 +5,21 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 10.10.1.0/24
-
+        - subnet: 192.168.10.0/24
   lan_serveurs:
     driver: bridge
     ipam:
       config:
-        - subnet: 10.10.2.0/24
-
+        - subnet: 10.0.0.0/24
   wan_sim:
     driver: bridge
     ipam:
       config:
-        - subnet: 10.10.3.0/24
+        - subnet: 172.16.0.0/24
 
 services:
 
+  # ─── Routeur central (simulé avec un conteneur Linux) ────────────────────────
   routeur:
     image: nicolaka/netshoot
     container_name: routeur
@@ -29,68 +28,75 @@ services:
       net.ipv4.ip_forward: 1
     networks:
       lan_etudiant:
-        ipv4_address: 10.10.1.254
+        ipv4_address: 192.168.10.254
       lan_serveurs:
-        ipv4_address: 10.10.2.254
+        ipv4_address: 10.0.0.254
       wan_sim:
-        ipv4_address: 10.10.3.254
+        ipv4_address: 172.16.0.254
     command: >
       sh -c "
+        ip route add 0.0.0.0/0 via 172.16.0.252 2>/dev/null || true;
         iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE;
         tail -f /dev/null
       "
 
+  # ─── Switch simulé (pont Linux) ──────────────────────────────────────────────
   switch_lan:
     image: nicolaka/netshoot
     container_name: switch_lan
     cap_add: [NET_ADMIN]
     networks:
       lan_etudiant:
-        ipv4_address: 10.10.1.2
+        ipv4_address: 192.168.10.2
     command: tail -f /dev/null
 
+  # ─── PC Étudiant A ───────────────────────────────────────────────────────────
   pc_a:
     image: nicolaka/netshoot
     container_name: pc_a
     cap_add: [NET_ADMIN]
     networks:
       lan_etudiant:
-        ipv4_address: 10.10.1.10
+        ipv4_address: 192.168.10.10
     command: tail -f /dev/null
 
+  # ─── PC Étudiant B ───────────────────────────────────────────────────────────
   pc_b:
     image: nicolaka/netshoot
     container_name: pc_b
     cap_add: [NET_ADMIN]
     networks:
       lan_etudiant:
-        ipv4_address: 10.10.1.11
+        ipv4_address: 192.168.10.11
     command: tail -f /dev/null
 
+  # ─── Serveur Web (Apache) ────────────────────────────────────────────────────
   srv_web:
     image: httpd:2.4
     container_name: srv_web
     networks:
       lan_serveurs:
-        ipv4_address: 10.10.2.10
+        ipv4_address: 10.0.0.10
     volumes:
       - ./www:/usr/local/apache2/htdocs/
 
+  # ─── Serveur DNS (dnsmasq) ───────────────────────────────────────────────────
   srv_dns:
     image: andyshinn/dnsmasq
     container_name: srv_dns
     cap_add: [NET_ADMIN]
     networks:
       lan_serveurs:
-        ipv4_address: 10.10.2.53
+        ipv4_address: 10.0.0.53
     command: >
       --no-daemon
-      --address=/srv-web.local/10.10.2.10
-      --address=/srv-dns.local/10.10.2.53
-      --address=/routeur.local/10.10.2.254
+      --address=/srv-web.local/10.0.0.10
+      --address=/srv-dns.local/10.0.0.53
+      --address=/routeur.local/10.0.0.254
       --log-queries
       --log-facility=-
 
+  # ─── Générateur de logs réseau (syslog simulé) ───────────────────────────────
   log_generator:
     image: python:3.11-slim
     container_name: log_generator
@@ -99,6 +105,5 @@ services:
       - ./scripts:/scripts
     networks:
       lan_etudiant:
-        ipv4_address: 10.10.1.99
-    command: sh -c "pip install -q --break-system-packages 2>/dev/null; python /scripts/generate_logs.py"
-
+        ipv4_address: 192.168.10.99
+    command: python /scripts/generate_logs.py
