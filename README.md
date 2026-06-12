@@ -3,7 +3,7 @@
 ## Démarrage rapide
 ```bash
 docker compose up -d
-docker exec log_generator python generate_logs.py &
+docker exec log_generator python scripts/generate_logs.py &
 docker exec pc_a ping -c3 10.0.0.10
 ```
 
