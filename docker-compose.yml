@@ -6,16 +6,19 @@ networks:
     ipam:
       config:
         - subnet: 192.168.10.0/24
+          gateway : 192.168.10.254
   lan_serveurs:
     driver: bridge
     ipam:
       config:
         - subnet: 10.0.0.0/24
+          gateway : 10.0.0.254
   wan_sim:
     driver: bridge
     ipam:
       config:
         - subnet: 172.16.0.0/24
+          gateway: 172.16.0.254
 
 services:
 
